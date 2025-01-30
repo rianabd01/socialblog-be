@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/rianabd01/socialblog-be/controllers/postcontroller"
 	"github.com/rianabd01/socialblog-be/models"
 
@@ -9,7 +11,13 @@ import (
 
 func main() {
 	r := gin.Default()
-	models.ConnectDatabase()
+
+	db, err := models.ConnectDatabase()
+	if err != nil {
+		log.Fatal("Gagal konek ke database:", err)
+	}
+
+	models.DB = db // ✅
 
 	// posts
 	r.GET("/api/posts", postcontroller.Index)

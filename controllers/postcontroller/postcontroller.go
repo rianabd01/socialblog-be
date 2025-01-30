@@ -2,6 +2,7 @@ package postcontroller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rianabd01/socialblog-be/models"
@@ -68,4 +69,23 @@ func Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil di update"})
+}
+
+func Delete(c *gin.Context) {
+	var post models.Post
+
+	input := map[string]string{"id": "0"}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	id, _ := strconv.ParseInt(input["id"], 10, 64)
+
+	if models.DB.Delete(&post, id).RowsAffected == 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Tidak dapat menghapus data"})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil dihapus"})
 }
