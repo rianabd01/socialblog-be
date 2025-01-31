@@ -25,5 +25,5 @@ func main() {
 	r.GET("/api/posts/:id", postcontroller.ShowDetail)
 	r.PUT("/api/posts/:id", postcontroller.Update)
 
-	r.Run()
+	r.Run(":8080")
 }
