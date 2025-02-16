@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -37,13 +36,12 @@ func ConnectDatabase() (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
 
-	// Optimalkan koneksi pool
-	sqlDB, _ := database.DB()
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(50)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	err = database.AutoMigrate(&Post{}, &User{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto migrate: %w", err)
+	}
 
-	log.Println("🚀 I've connected to database")
+	log.Println("🚀 Successfully connected to database & migration completed!")
 
 	return database, nil
 }
