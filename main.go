@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/rianabd01/socialblog-be/controllers/postcontroller"
+	"github.com/rianabd01/socialblog-be/controllers/usercontroller"
 	"github.com/rianabd01/socialblog-be/models"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,9 @@ func main() {
 	}
 
 	models.DB = db // ✅
+
+	// user
+	r.POST("/api/users", usercontroller.Create)
 
 	// posts
 	r.GET("/api/posts", postcontroller.Index)
