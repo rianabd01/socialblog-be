@@ -1,7 +1,5 @@
-# Gunakan base image Go
-FROM golang:1.20 AS builder
-
-# Set working directory
+# Gunakan base image Golang
+FROM golang:1.23 AS builder
 WORKDIR /app
 
 # Copy module dependencies
@@ -15,8 +13,8 @@ COPY . .
 # Build aplikasi
 RUN go build -o main .
 
-# Gunakan base image yang lebih ringan untuk hasil akhir
-FROM gcr.io/distroless/base-debian11
+# Gunakan base image yang lebih ringan
+FROM gcr.io/distroless/base
 WORKDIR /root/
 COPY --from=builder /app/main .
 
