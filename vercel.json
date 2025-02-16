@@ -1,5 +1,9 @@
 {
-    "version": 2,
-    "builds": [{ "src": "Dockerfile", "use": "@vercel/docker" }]
-  }
-  
+  "version": 2,
+  "builds": [
+    {
+      "src": "./main.go",
+      "use": "@vercel/go"
+    }
+  ]
+}

@@ -5,14 +5,15 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rianabd01/socialblog-be/models"
+	"github.com/rianabd01/socialblog-be/internal/models"
+	"github.com/rianabd01/socialblog-be/internal/server"
 	"gorm.io/gorm"
 )
 
 func Index(c *gin.Context) {
 	var posts []models.Post
 
-	models.DB.Find(&posts)
+	server.DB.Find(&posts)
 
 	c.JSON(http.StatusOK, gin.H{"posts": posts})
 }
@@ -22,7 +23,7 @@ func ShowDetail(c *gin.Context) {
 
 	id := c.Param("id")
 
-	if err := models.DB.First(&post, id).Error; err != nil {
+	if err := server.DB.First(&post, id).Error; err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"messsage": "Data tidak ditemukan"})
@@ -45,7 +46,7 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	if err := models.DB.Create(&post).Error; err != nil {
+	if err := server.DB.Create(&post).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create post"})
 		return
 	}
@@ -63,7 +64,7 @@ func Update(c *gin.Context) {
 		return
 	}
 
-	if models.DB.Model(&post).Where("id = ?", id).Updates(&post).RowsAffected == 0 {
+	if server.DB.Model(&post).Where("id = ?", id).Updates(&post).RowsAffected == 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "tidak ada data yang berubah"})
 		return
 	}
@@ -83,7 +84,7 @@ func Delete(c *gin.Context) {
 
 	id, _ := strconv.ParseInt(input["id"], 10, 64)
 
-	if models.DB.Delete(&post, id).RowsAffected == 0 {
+	if server.DB.Delete(&post, id).RowsAffected == 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Tidak dapat menghapus data"})
 	}
 
