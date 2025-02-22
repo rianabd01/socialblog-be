@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -19,15 +21,28 @@ import (
 )
 
 var (
+	googleOauthConfig *oauth2.Config // Declare as pointer
+	oauthStateString  = "random"
+)
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file:", err) // print error
+	}
+
 	googleOauthConfig = &oauth2.Config{
 		RedirectURL:  "http://localhost:8080/auth/google/callback",
-		ClientID:     os.Getenv("GoogleID"),
-		ClientSecret: os.Getenv("GoogleSecret"),
-		Scopes:       []string{"openid", "profile", "email"},
+		ClientID:     os.Getenv("GOOGLE_ID"),
+		ClientSecret: os.Getenv("GOOGLE_SECRET"),
+		Scopes:       []string{"profile", "email"},
 		Endpoint:     google.Endpoint,
 	}
-	oauthStateString = "random"
-)
+
+	if googleOauthConfig.ClientID == "" || googleOauthConfig.ClientSecret == "" {
+		panic("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in .env")
+	}
+}
 
 func Signup(c *gin.Context) {
 	var user models.User
@@ -80,7 +95,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := utils.GenerateJWT(user.Username)
+	jwtToken, err := utils.GenerateJWT(user.ID, user.Email, "manual")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
@@ -89,16 +104,22 @@ func Login(c *gin.Context) {
 	user.LastLogin = &gorm.DeletedAt{Time: time.Now()}
 	server.DB.Save(&user)
 
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
-
-	// c.JSON(http.StatusOK, gin.H{"user": user})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token":   jwtToken,
+		"user": gin.H{
+			"name":     user.Name,
+			"username": user.Username,
+			"email":    MaskEmail(user.Email),
+			"picture":  user.AvatarUrl,
+		},
+	})
 }
 
 func GoogleLogin(c *gin.Context) {
-
-	fmt.Println(os.Getenv("GoogleID"), os.Getenv("GoogleSecret"))
-
-	url := googleOauthConfig.AuthCodeURL(oauthStateString)
+	url := googleOauthConfig.AuthCodeURL(oauthStateString,
+		oauth2.AccessTypeOffline,
+		oauth2.ApprovalForce)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -133,55 +154,82 @@ func GoogleCallback(c *gin.Context) {
 		Name    string `json:"name"`
 		Picture string `json:"picture"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode user info", "error": err.Error()})
 		return
 	}
 
-	fmt.Println("userInfo ", userInfo)
-	if err := saveOrUpdateUser(userInfo); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save or update user", "error": err.Error()})
+	// Simpan atau update user, tambahkan refresh token jika ada
+	var user models.User
+	if err := server.DB.Where("provider_id = ? OR email = ?", userInfo.ID, userInfo.Email).First(&user).Error; err != nil {
+		user = models.User{
+			ProviderID:   userInfo.ID,
+			Email:        userInfo.Email,
+			Name:         userInfo.Name,
+			AvatarUrl:    userInfo.Picture,
+			Provider:     "google",
+			RefreshToken: token.RefreshToken,
+			Verified:     true,
+			Username:     userInfo.Email,
+		}
+		if err := server.DB.Create(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create user", "error": err.Error()})
+			return
+		}
+	} else if token.RefreshToken != "" {
+		server.DB.Model(&user).Update("refresh_token", token.RefreshToken)
+	}
+
+	// Generate JWT
+	jwtToken, err := utils.GenerateJWT(user.ID, userInfo.Email, "google")
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate JWT", "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token":   jwtToken,
+		"user": gin.H{
+			"name":     user.Name,
+			"username": user.Username,
+			"email":    MaskEmail(user.Email),
+			"picture":  user.AvatarUrl,
+		},
+	})
 }
 
-func saveOrUpdateUser(userInfo struct {
-	ID      string `json:"id"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
-}) error {
-	var user models.User
-	if err := server.DB.Where("provider_id = ? AND provider = ?", userInfo.ID, "google").First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Create a new user if not found
-			user = models.User{
-				Provider:   "google",
-				ProviderID: userInfo.ID,
-				Email:      userInfo.Email,
-				Name:       userInfo.Name,
-				AvatarUrl:  userInfo.Picture,
-				Verified:   true,
-				Username:   userInfo.Email, // Mengisi username dengan email
-			}
-			if err := server.DB.Create(&user).Error; err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
+func MaskEmail(email string) string {
+	if email == "" {
+		return ""
 	}
 
-	// Update last login time
-	user.LastLogin = &gorm.DeletedAt{Time: time.Now()}
-	if err := server.DB.Save(&user).Error; err != nil {
-		return err
+	// Pisahkan email menjadi bagian sebelum dan sesudah '@'
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return email // Kembali ke email asli jika format salah
 	}
 
-	return nil
+	username := parts[0]
+	domain := parts[1]
+
+	// Mask username: tampilkan 3 karakter awal, sisanya jadi '*'
+	maskedUsername := ""
+	if len(username) <= 3 {
+		maskedUsername = username
+	} else {
+		maskedUsername = username[:3] + strings.Repeat("*", len(username)-3)
+	}
+
+	// Mask domain: sembunyikan semua kecuali bagian setelah titik terakhir
+	domainParts := strings.Split(domain, ".")
+	if len(domainParts) < 2 {
+		return maskedUsername + "@" + domain
+	}
+	maskedDomain := strings.Repeat("*", len(domain)-len(domainParts[len(domainParts)-1])-1) + "." + domainParts[len(domainParts)-1]
+
+	return maskedUsername + "@" + maskedDomain
 }
 
 func hashPassword(password string) (string, error) {

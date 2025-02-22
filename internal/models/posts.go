@@ -9,6 +9,7 @@ type Post struct {
 	gorm.Model // Ini akan menambahkan ID, CreatedAt, UpdatedAt, DeletedAt
 
 	Title    string         `gorm:"size:255;not null" json:"title"`
+	Type     string         `gorm:"size:255;not null" json:"type"`
 	Body     string         `gorm:"type:text;not null" json:"body"`
 	ReferID  *uint          `gorm:"index" json:"refer_id"`
 	OwnerID  uint           `gorm:"not null" json:"owner_id"`

@@ -8,24 +8,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET_KEY")) // Pastikan set var. ini di ENV anda.
+var jwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
 
 type JWTClaim struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(username string) (tokenString string, err error) {
-	expirationTime := time.Now().Add(1 * time.Hour)
-	claims := &JWTClaim{
-		Username: username,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
+func GenerateJWT(userID uint, email, source string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"source":  source,
+		"exp":     time.Now().Add(30 * 24 * time.Hour).Unix(), // kedaluarsa 30 hari
+		"iat":     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err = token.SignedString(jwtKey)
-	return
+	return token.SignedString(jwtKey)
 }
 
 func ValidateToken(signedToken string) (claims *JWTClaim, err error) {

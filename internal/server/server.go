@@ -35,7 +35,7 @@ func ConnectDatabase() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// aktifkan untuk migrasi, resikonya data semua terhapus
+	// // aktifkan untuk migrasi, resikonya data semua terhapus
 	// err = db.Migrator().DropTable(&models.Post{}, &models.User{})
 	// if err != nil {
 	// 	log.Fatalf("failed to drop table: %v", err)
