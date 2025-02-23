@@ -21,7 +21,7 @@ func main() {
 
 	// routes
 	routes.AuthRoutes(r)
-	routes.PostRoutes(r)
+	routes.BlogRoutes(r)
 
 	r.Run(":8080")
 }
