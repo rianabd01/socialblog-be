@@ -35,13 +35,13 @@ func ConnectDatabase() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// aktifkan untuk migrasi, resikonya data semua terhapus
-	// err = db.Migrator().DropTable(&models.Post{}, &models.User{})
+	// // aktifkan untuk migrasi, resikonya data semua terhapus
+	// err = db.Migrator().DropTable(&models.Blog{}, &models.User{})
 	// if err != nil {
 	// 	log.Fatalf("failed to drop table: %v", err)
 	// }
 
-	// err = db.AutoMigrate(&models.Post{}, &models.User{})
+	// err = db.AutoMigrate(&models.Blog{}, &models.User{})
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to auto migrate: %w", err)
 	// }
