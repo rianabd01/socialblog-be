@@ -1,4 +1,4 @@
-package authcontroller
+package controller
 
 import (
 	"encoding/json"
