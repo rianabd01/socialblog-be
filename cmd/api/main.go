@@ -22,6 +22,7 @@ func main() {
 	// routes
 	routes.AuthRoutes(r)
 	routes.BlogRoutes(r)
+	routes.RepostRoutes(r)
 
 	r.Run(":8080")
 }
