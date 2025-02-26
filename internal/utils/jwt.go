@@ -7,27 +7,37 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rianabd01/socialblog-be/internal/models"
 )
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
 
 type JWTClaim struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
+	UserID    uint   `json:"user_id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	AvatarUrl string `json:"avatar_url"`
+	Provider  string `json:"provider"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID uint, username, source string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  userID,
-		"username": username,
-		"source":   source,
-		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(), // kedaluarsa 30 hari
-		"iat":      time.Now().Unix(),
+func GenerateJWT(user models.User, source string) (string, error) {
+	claims := JWTClaim{
+		UserID:    user.ID,
+		Username:  user.Username,
+		Email:     MaskEmail(user.Email),
+		Name:      user.Name,
+		AvatarUrl: user.AvatarUrl,
+		Provider:  source,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), // 30 hari
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	fmt.Println("klem", claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	fmt.Println("claims:", claims)
 	return token.SignedString(jwtKey)
 }
 

@@ -3,9 +3,10 @@ package authcontroller
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -47,30 +48,62 @@ func init() {
 func Signup(c *gin.Context) {
 	var user models.User
 
-	fmt.Println('1')
+	// Binding JSON
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		log.Printf("Invalid request payload: %v", err) // Log detail error
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid request data. Please check your input.",
+		})
 		return
 	}
 
+	// Validasi user
 	if err := user.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		log.Printf("Validation failed: %v", err) // Log detail error
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
 		return
 	}
 
+	// Hash password
 	hashedPassword, err := hashPassword(user.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to hash password"})
+		log.Printf("Failed to hash password: %v", err) // Log error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Something went wrong. Please try again later.",
+		})
 		return
 	}
 	user.Password = hashedPassword
 
+	// Simpan ke database
 	if err := server.DB.Create(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		log.Printf("Database error: %v", err) // Log detail error
+		// Cek apakah error karena duplikat
+		if isDuplicateError(err) {
+			c.JSON(http.StatusConflict, gin.H{
+				"message": "Email or username already exists.",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Failed to create account. Please try again later.",
+			})
+		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"user": user})
+	// Response sukses
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Signup successful",
+	})
+}
+
+func isDuplicateError(err error) bool {
+	if err != nil {
+		return strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique")
+	}
+	return false
 }
 
 func Login(c *gin.Context) {
@@ -80,7 +113,10 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		log.Printf("Invalid request payload: %v", err) // Log detail error
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid request data. Please check your input.",
+		})
 		return
 	}
 
@@ -95,9 +131,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	jwtToken, err := utils.GenerateJWT(user.ID, user.Username, "manual")
+	jwtToken, err := utils.GenerateJWT(user, "manual")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "token invalid"})
 		return
 	}
 
@@ -105,14 +141,8 @@ func Login(c *gin.Context) {
 	server.DB.Save(&user)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
+		"message": "login successful",
 		"token":   jwtToken,
-		"user": gin.H{
-			"name":     user.Name,
-			"username": user.Username,
-			"email":    utils.MaskEmail(user.Email),
-			"picture":  user.AvatarUrl,
-		},
 	})
 }
 
@@ -182,25 +212,16 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// Generate JWT
-	jwtToken, err := utils.GenerateJWT(user.ID, user.Username, "google")
+	jwtToken, err := utils.GenerateJWT(user, "google")
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate JWT", "error": err.Error()})
 		return
 	}
 
-	frontendURL := os.Getenv("AUTH_REDIRECT")
-	params := url.Values{}
-	params.Add("token", jwtToken)
-	params.Add("name", user.Name)
-	params.Add("username", user.Username)
-	params.Add("email", utils.MaskEmail(user.Email))
-	params.Add("picture", user.AvatarUrl)
+	redirect := os.Getenv("AUTH_REDIRECT") + "?token=" + jwtToken
 
-	redirectURL := frontendURL + "?" + params.Encode()
-
-	fmt.Println(redirectURL)
-	c.Redirect(http.StatusFound, redirectURL)
+	c.Redirect(http.StatusFound, redirect)
 }
 
 func hashPassword(password string) (string, error) {
