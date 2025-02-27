@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/rianabd01/socialblog-be/internal/routes"
 	"github.com/rianabd01/socialblog-be/internal/server"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -18,6 +18,15 @@ func main() {
 	}
 
 	server.DB = db
+
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowMethods = []string{"POST", "GET", "PUT", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "User-Agent", "Cache-Control", "Pragma"}
+	config.ExposeHeaders = []string{"Content-Length"}
+	config.AllowCredentials = true
+
+	r.Use(cors.New(config))
 
 	// routes
 	routes.AuthRoutes(r)
