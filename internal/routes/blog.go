@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/rianabd01/socialblog-be/internal/controllers/blogcontroller"
+	blogcontroller "github.com/rianabd01/socialblog-be/internal/controllers/blog-controller"
 	"github.com/rianabd01/socialblog-be/internal/middleware"
 )
 

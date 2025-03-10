@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/rianabd01/socialblog-be/internal/controllers/authcontroller"
+	authcontroller "github.com/rianabd01/socialblog-be/internal/controllers/auth-controller"
 )
 
 func AuthRoutes(r *gin.Engine) {
