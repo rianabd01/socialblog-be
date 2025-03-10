@@ -4,7 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Repost struct {
+type Post struct {
 	gorm.Model
 
 	UserID    uint   `gorm:"not null" json:"user_id"`

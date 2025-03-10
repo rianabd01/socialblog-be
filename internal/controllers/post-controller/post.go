@@ -1,4 +1,4 @@
-package repostcontroller
+package postcontroller
 
 import (
 	"fmt"
@@ -31,12 +31,12 @@ type BlogResponse struct {
 }
 
 func Index(c *gin.Context) {
-	var reposts []models.Repost
-	server.DB.Preload("Owner").Preload("Blog").Find(&reposts)
+	var posts []models.Post
+	server.DB.Preload("Owner").Preload("Blog").Find(&posts)
 
 	// Konversi ke response struct agar data lebih bersih
 	var responses []RepostResponse
-	for _, repost := range reposts {
+	for _, repost := range posts {
 		responses = append(responses, RepostResponse{
 			ID:        repost.ID,
 			User:      UserResponse{ID: repost.Owner.ID, Name: repost.Owner.Name},
@@ -46,11 +46,11 @@ func Index(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reposts": responses})
+	c.JSON(http.StatusOK, gin.H{"posts": responses})
 }
 
 func ShowDetail(c *gin.Context) {
-	var repost models.Repost
+	var repost models.Post
 
 	id := c.Param("id")
 
@@ -70,7 +70,7 @@ func ShowDetail(c *gin.Context) {
 }
 
 func Create(c *gin.Context) {
-	var repost models.Repost
+	var repost models.Post
 	var user models.User
 	userID, _ := c.Get("user_id") // mendapat username dari middleware
 	fmt.Println("userID", userID)
