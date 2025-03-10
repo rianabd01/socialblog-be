@@ -17,6 +17,11 @@ func main() {
 		log.Fatal("Gagal konek ke database:", err)
 	}
 
+	// conn to redis
+	if err := server.InitRedis(); err != nil {
+		log.Println("Redis is not available, but the application will continue running.")
+	}
+
 	server.DB = db
 
 	config := cors.DefaultConfig()
@@ -31,7 +36,8 @@ func main() {
 	// routes
 	routes.AuthRoutes(r)
 	routes.BlogRoutes(r)
-	routes.RepostRoutes(r)
+	routes.PostRoutes(r)
+	routes.UserActionRoutes(r)
 
 	r.Run(":8080")
 }
